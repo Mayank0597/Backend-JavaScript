@@ -15,7 +15,7 @@ dotenv.config({
     })
  })
  .catch((err)=>{
-    console.log("Mongo DB connection fail", err);
+    console.log("Mongo DB connection failed !!!", err);
     
  })
 
