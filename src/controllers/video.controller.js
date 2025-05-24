@@ -10,7 +10,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
   // console.log("req.query", req.query);
 
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
-  // console.log("req.query1", req.query);
+
   //TODO: get all videos based on query, sort, pagination
   const options = {
     page: parseInt(page, 10),
@@ -99,15 +99,19 @@ const publishAVideo = asyncHandler(async (req, res) => {
   const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
 
   if (!videoFileLocalPath) {
+    // console.log("videoFileLocalPath", videoFileLocalPath);
     throw new ApiError(400, "Video file is required");
   }
 
   if (!thumbnailLocalPath) {
-    throw new ApiError(400, "Thumbnail is required");                        
+    // console.log("thumbnailLocalPath", thumbnailLocalPath);
+    throw new ApiError(400, "Thumbnail is required");
   }
 
   const videoFile = await uploadOnCloudinary(videoFileLocalPath);
   const thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
+  // console.log("videoFile", videoFile);
+  // console.log("thumbnail", thumbnail);
 
   if (!videoFile) {
     throw new ApiError(400, "Video file upload failed");
@@ -118,13 +122,14 @@ const publishAVideo = asyncHandler(async (req, res) => {
   }
 
   const video = await Video.create({
-    videoFile: videoFile.url,
-    thumbnail: thumbnail.url,
+    VideoFile: videoFile.url,
+    thumbNail: thumbnail.url,
     title,
     description,
     duration: videoFile.duration,
     owner: req.user?._id,
   });
+  // console.log("video", video);
 
   const createdVideo = await Video.findById(video._id);
 
@@ -140,11 +145,103 @@ const publishAVideo = asyncHandler(async (req, res) => {
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   //TODO: get video by id
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid video id");
+  }
+
+  // Increment views when someone gets the video
+  await Video.findByIdAndUpdate(videoId, {
+    $inc: { views: 1 },
+  });
+
+  const video = await Video.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(videoId),
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "owner",
+        pipeline: [
+          {
+            $project: {
+              username: 1,
+              fullName: 1,
+              avatar: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        owner: {
+          $first: "$owner",
+        },
+      },
+    },
+  ]);
+
+  if (!video || video.length === 0) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, video[0], "Video fetched successfully"));
 });
 
 const updateVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   //TODO: update video details like title, description, thumbnail
+  const { title, description } = req.body;
+  const thumbnailLocalPath = req.file?.path;
+
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid video id");
+  }
+
+  if (!title && !description && !thumbnailLocalPath) {
+    throw new ApiError(400, "At least one field is required to update");
+  }
+
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  if (video.owner.toString() !== req.user?._id.toString()) {
+    throw new ApiError(403, "You can only update your own videos");
+  }
+
+  let thumbnail;
+  if (thumbnailLocalPath) {
+    thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
+    if (!thumbnail.url) {
+      throw new ApiError(400, "Error while uploading thumbnail");
+    }
+  }
+
+  const updatedVideo = await Video.findByIdAndUpdate(
+    videoId,
+    {
+      $set: {
+        title: title || video.title,
+        description: description || video.description,
+        thumbnail: thumbnail?.url || video.thumbnail,
+      },
+    },
+    { new: true }
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedVideo, "Video updated successfully"));
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
