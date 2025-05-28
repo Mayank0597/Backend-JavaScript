@@ -7,14 +7,37 @@ const app = express();
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,
-    credentials: true,
+    credentials: true, // Allows cookies to be sent with requests from the specified origin
   })
 );
 
-app.use(express.json({ limit: "16kb" }));
-app.use(express.urlencoded({ extended: true, limit: "16kb" }));
-app.use(express.static("public"));
-app.use(cookieParser());
+app.use(express.json({ limit: "16kb" })); // Parses JSON data sent in the request body (like from a POST request).
+// The limit option specifies the maximum size of the JSON payload that can be parsed.
+app.use(express.urlencoded({ extended: true, limit: "16kb" })); //Parses data sent from HTML forms (like <form method="POST">).
+app.use(express.static("public")); // Serves static files from the "public" directory
+// This is useful for serving images, CSS files, and JavaScript files.
+app.use(cookieParser()); // Parses cookies attached to the request object.
+// This is useful for handling user sessions and authentication.
+
+/*
+What it does:
+
+Parses cookies attached to incoming requests.
+
+Turns cookie strings (like "user=john; auth=true") into an easy-to-use JavaScript object (req.cookies).
+
+Why cookies matter:
+
+Cookies are small pieces of data stored in the user's browser.
+
+Commonly used for:
+
+Session management (keeping users logged in)
+
+Tracking user preferences
+
+Storing small amounts of client-side data 
+*/
 
 // routes import
 
