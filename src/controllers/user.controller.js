@@ -59,7 +59,17 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   console.log("req.files", req.files);
-  const avatarLocalPath = req.files?.avatar[0]?.path;
+  const avatarLocalPath = req.files?.avatar[0]?.path; // Explain this line
+  // req.files?.avatar[0]?.path is used to get the path of the uploaded avatar file from the request object.
+  // If the avatar file is uploaded, it will be an array of files, and we take the first file's path.
+  // If the avatar file is not uploaded, it will be undefined, and we handle that case later.
+  // If you are using a single file upload, you can use req.file?.path instead.
+  // If you are using multiple files, you can use req.files?.avatar[0]?.path to get the first file's path.
+  // If you are using multer with a single file upload, you can use req.file?.path instead.
+  // If you are using multer with multiple files, you can use req.files?.avatar[0]?.path to get the first file's path.
+  // from where we are getting avatar[0]?
+  // req.files is an object that contains the files uploaded in the request.
+
 
   // const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
@@ -94,7 +104,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const createdUser = await User.findById(user._id).select(
     "-password -refreshToken"
-  );
+  ); // select -password -refreshToken is used to exclude the password and refreshToken fields from the response
 
   if (!createdUser) {
     throw new ApiError(500, "Something went wrong while registering the user");
